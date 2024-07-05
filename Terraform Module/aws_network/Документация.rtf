@@ -1,0 +1,180 @@
+{\rtf1\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Calibri;}{\f1\fnil\fcharset204 Calibri;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang1033 #----------------------------------------------------------\par
+# \f1\lang1058\'cc\'ee\'ff \'ea\'ee\'ed\'f4\'e8\'e3\'f3\'f0\'e0\'f6\'e8\'ff Terraform\par
+# \'cf\'ee\'f1\'f2\'f0\'ee\'e9\'ea\'e0:\par
+#  - VPC\par
+#  - Internet Gateway\par
+#  - XX \'cf\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+#  - XX \'cf\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+#  - XX NAT Gateways \'e2 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'ff\'f5 \'e4\'eb\'ff \'ef\'f0\'e5\'e4\'ee\'f1\'f2\'e0\'e2\'eb\'e5\'ed\'e8\'ff \'e4\'ee\'f1\'f2\'f3\'ef\'e0 \'e2 \'c8\'ed\'f2\'e5\'f0\'ed\'e5\'f2 \'e8\'e7 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+#\par
+#----------------------------------------------------------\par
+\par
+#==============================================================\par
+\par
+# \'cf\'ee\'eb\'f3\'f7\'e5\'ed\'e8\'e5 \'e4\'ee\'f1\'f2\'f3\'ef\'ed\'fb\'f5 \'e7\'ee\'ed \'e4\'ee\'f1\'f2\'f3\'ef\'ed\'ee\'f1\'f2\'e8 AWS\par
+data "aws_availability_zones" "available" \{\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 \'e2\'e8\'f0\'f2\'f3\'e0\'eb\'fc\'ed\'ee\'e9 \'f7\'e0\'f1\'f2\'ed\'ee\'e9 \'f1\'e5\'f2\'e8 (VPC)\par
+resource "aws_vpc" "main" \{\par
+  cidr_block = var.vpc_cidr\par
+  tags = \{\par
+    Name = "$\{var.env\}-vpc"\par
+  \}\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 \'e8\'ed\'f2\'e5\'f0\'ed\'e5\'f2-\'f8\'eb\'fe\'e7\'e0 \'e8 \'e5\'e3\'ee \'e0\'f1\'f1\'ee\'f6\'e8\'e0\'f6\'e8\'ff \'f1 VPC\par
+resource "aws_internet_gateway" "main" \{\par
+  vpc_id = aws_vpc.main.id\par
+  tags = \{\par
+    Name = "$\{var.env\}-igw"\par
+  \}\par
+\}\par
+\par
+#-------------\'cf\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'e5 \'ef\'ee\'e4\'f1\'e5\'f2\'e8 \'e8 \'ed\'e0\'f1\'f2\'f0\'ee\'e9\'ea\'e0 \'ec\'e0\'f0\'f8\'f0\'f3\'f2\'e8\'e7\'e0\'f6\'e8\'e8----------------------------------------\par
+resource "aws_subnet" "public_subnets" \{\par
+  count                   = length(var.public_subnet_cidrs)\par
+  vpc_id                  = aws_vpc.main.id\par
+  cidr_block              = element(var.public_subnet_cidrs, count.index)\par
+  availability_zone       = data.aws_availability_zones.available.names[count.index]\par
+  map_public_ip_on_launch = true\par
+  tags = \{\par
+    Name = "$\{var.env\}-public-$\{count.index + 1\}"\par
+  \}\par
+\}\par
+\par
+resource "aws_route_table" "public_subnets" \{\par
+  vpc_id = aws_vpc.main.id\par
+  route \{\par
+    cidr_block = "0.0.0.0/0"\par
+    gateway_id = aws_internet_gateway.main.id\par
+  \}\par
+  tags = \{\par
+    Name = "$\{var.env\}-route-public-subnets"\par
+  \}\par
+\}\par
+\par
+resource "aws_route_table_association" "public_routes" \{\par
+  count          = length(aws_subnet.public_subnets[*].id)\par
+  route_table_id = aws_route_table.public_subnets.id\par
+  subnet_id      = element(aws_subnet.public_subnets[*].id, count.index)\par
+\}\par
+\par
+#-----NAT Gateways \'f1 Elastic IPs--------------------------\par
+\par
+resource "aws_eip" "nat" \{\par
+  count   = length(var.private_subnet_cidrs)\par
+  domain = "vpc"\par
+  tags = \{\par
+    Name = "$\{var.env\}-nat-gw-$\{count.index + 1\}"\par
+  \}\par
+\}\par
+\par
+resource "aws_nat_gateway" "nat" \{\par
+  count         = length(var.private_subnet_cidrs)\par
+  allocation_id = aws_eip.nat[count.index].id\par
+  subnet_id     = element(aws_subnet.public_subnets[*].id, count.index)\par
+  tags = \{\par
+    Name = "$\{var.env\}-nat-gw-$\{count.index + 1\}"\par
+  \}\par
+\}\par
+\par
+#--------------\'cf\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'e5 \'ef\'ee\'e4\'f1\'e5\'f2\'e8 \'e8 \'ed\'e0\'f1\'f2\'f0\'ee\'e9\'ea\'e0 \'ec\'e0\'f0\'f8\'f0\'f3\'f2\'e8\'e7\'e0\'f6\'e8\'e8-------------------------\par
+\par
+resource "aws_subnet" "private_subnets" \{\par
+  count             = length(var.private_subnet_cidrs)\par
+  vpc_id            = aws_vpc.main.id\par
+  cidr_block        = element(var.private_subnet_cidrs, count.index)\par
+  availability_zone = data.aws_availability_zones.available.names[count.index]\par
+  tags = \{\par
+    Name = "$\{var.env\}-private-$\{count.index + 1\}"\par
+  \}\par
+\}\par
+\par
+resource "aws_route_table" "private_subnets" \{\par
+  count  = length(var.private_subnet_cidrs)\par
+  vpc_id = aws_vpc.main.id\par
+  route \{\par
+    cidr_block = "0.0.0.0/0"\par
+    gateway_id = aws_nat_gateway.nat[count.index].id\par
+  \}\par
+  tags = \{\par
+    Name = "$\{var.env\}-route-private-subnet-$\{count.index + 1\}"\par
+  \}\par
+\}\par
+\par
+resource "aws_route_table_association" "private_routes" \{\par
+  count          = length(aws_subnet.private_subnets[*].id)\par
+  route_table_id = aws_route_table.private_subnets[count.index].id\par
+  subnet_id      = element(aws_subnet.private_subnets[*].id, count.index)\par
+\}\par
+\par
+#==============================================================\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'ea\'ee\'e4 Terraform \'f1\'ee\'e7\'e4\'e0\'e5\'f2 \'e2\'e8\'f0\'f2\'f3\'e0\'eb\'fc\'ed\'f3\'fe \'f7\'e0\'f1\'f2\'ed\'f3\'fe \'f1\'e5\'f2\'fc (VPC) \'e2 \'ee\'e1\'eb\'e0\'ea\'e5 AWS \'f1 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'ec\'e8 \'e8 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'ec\'e8 \'ef\'ee\'e4\'f1\'e5\'f2\'ff\'ec\'e8, \'e8\'ed\'f2\'e5\'f0\'ed\'e5\'f2-\'f8\'eb\'fe\'e7\'ee\'ec \'e8 NAT-\'f8\'eb\'fe\'e7\'e0\'ec\'e8 \'e4\'eb\'ff \'ef\'f0\'e5\'e4\'ee\'f1\'f2\'e0\'e2\'eb\'e5\'ed\'e8\'ff \'e4\'ee\'f1\'f2\'f3\'ef\'e0 \'e2 \'c8\'ed\'f2\'e5\'f0\'ed\'e5\'f2 \'e8\'e7 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9.\line\par
+#----------------------------------------------------------\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'e0 VPC\par
+output "vpc_id" \{\par
+  value = aws_vpc.main.id\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e4\'e8\'e0\'ef\'e0\'e7\'ee\'ed\'e0 CIDR \'e4\'eb\'ff VPC\par
+output "vpc_cidr" \{\par
+  value = aws_vpc.main.cidr_block\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+output "public_subnet_ids" \{\par
+  value = aws_subnet.public_subnets[*].id\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+output "private_subnet_ids" \{\par
+  value = aws_subnet.private_subnets[*].id\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'e4\'ee\'e1\'e0\'e2\'eb\'ff\'e5\'f2 \'e2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 \'f1\'ee\'e7\'e4\'e0\'ed\'ed\'ee\'e9 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb \'f1 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5\'ec Terraform. \line\'c2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'f2\'fc \'fd\'f2\'e8 \'e2\'fb\'e2\'ee\'e4\'fb, \'f7\'f2\'ee\'e1\'fb \'ef\'ee\'eb\'f3\'f7\'e8\'f2\'fc \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'ff, \'f2\'e0\'ea\'e8\'e5 \'ea\'e0\'ea \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0 VPC (`terraform output vpc_id`), \'e4\'e8\'e0\'ef\'e0\'e7\'ee\'ed CIDR \'e4\'eb\'ff VPC (`terraform output vpc_cidr`), \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'fb \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'e8 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'ef\'ee\'f1\'eb\'e5 \'e2\'fb\'ef\'ee\'eb\'ed\'e5\'ed\'e8\'ff \'ea\'ee\'ec\'e0\'ed\'e4\'fb `terraform apply`.\line\line\lang1049\par
+#----------------------------------------------------------\par
+# \'cf\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'e5 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'c4\'e8\'e0\'ef\'e0\'e7\'ee\'ed CIDR \'e4\'eb\'ff VPC\par
+variable "vpc_cidr" \{\par
+  default = "10.0.0.0/16"\par
+\}\par
+\par
+# \'ce\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'e5 (\'ed\'e0\'ef\'f0\'e8\'ec\'e5\'f0, dev, prod)\par
+variable "env" \{\par
+  default = "dev"\par
+\}\par
+\par
+# \'c4\'e8\'e0\'ef\'e0\'e7\'ee\'ed\'fb CIDR \'e4\'eb\'ff \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+variable "public_subnet_cidrs" \{\par
+  default = [\par
+    "10.0.1.0/24",\par
+    "10.0.2.0/24",\par
+    "10.0.3.0/24"\par
+  ]\par
+\}\par
+\par
+# \'c4\'e8\'e0\'ef\'e0\'e7\'ee\'ed\'fb CIDR \'e4\'eb\'ff \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9\par
+variable "private_subnet_cidrs" \{\par
+  default = [\par
+    "10.0.11.0/24",\par
+    "10.0.22.0/24",\par
+    "10.0.33.0/24"\par
+  ]\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'f1\'ee\'e4\'e5\'f0\'e6\'e8\'f2 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'e5, \'ea\'ee\'f2\'ee\'f0\'fb\'e5 \'ec\'ee\'e6\'ed\'ee \'ed\'e0\'f1\'f2\'f0\'ee\'e8\'f2\'fc \'e2 \'f1\'ee\'ee\'f2\'e2\'e5\'f2\'f1\'f2\'e2\'e8\'e8 \'f1 \'f2\'f0\'e5\'e1\'ee\'e2\'e0\'ed\'e8\'ff\'ec\'e8 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb. \line\'cd\'e0\'ef\'f0\'e8\'ec\'e5\'f0, \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'e0\'ff `vpc_cidr` \'ee\'ef\'f0\'e5\'e4\'e5\'eb\'ff\'e5\'f2 \'e4\'e8\'e0\'ef\'e0\'e7\'ee\'ed CIDR \'e4\'eb\'ff \'f1\'ee\'e7\'e4\'e0\'e2\'e0\'e5\'ec\'ee\'e9 VPC, `env` \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'f3\'e5\'f2\'f1\'ff \'e4\'eb\'ff \'f3\'ea\'e0\'e7\'e0\'ed\'e8\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff (\'ed\'e0\'ef\'f0\'e8\'ec\'e5\'f0, "dev" \'e8\'eb\'e8 "prod"), \'e0 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'e5 `public_subnet_cidrs` \'e8 `private_subnet_cidrs` \'f1\'ee\'e4\'e5\'f0\'e6\'e0\'f2 \'e4\'e8\'e0\'ef\'e0\'e7\'ee\'ed\'fb CIDR \'e4\'eb\'ff \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'e8 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'f1\'ee\'ee\'f2\'e2\'e5\'f2\'f1\'f2\'e2\'e5\'ed\'ed\'ee. \line\'c7\'ed\'e0\'f7\'e5\'ed\'e8\'ff \'ef\'ee \'f3\'ec\'ee\'eb\'f7\'e0\'ed\'e8\'fe \'f3\'ea\'e0\'e7\'e0\'ed\'fb \'e4\'eb\'ff \'ea\'e0\'e6\'e4\'ee\'e9 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'ee\'e9.\f0\lang1033\par
+}
+ 

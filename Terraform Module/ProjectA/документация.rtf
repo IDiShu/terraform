@@ -1,0 +1,118 @@
+{\rtf1\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Calibri;}{\f1\fnil\fcharset204 Calibri;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang1033 #----------------------------------------------------------\par
+# \f1\lang1049\'cc\'ee\'ff \'ea\'ee\'ed\'f4\'e8\'e3\'f3\'f0\'e0\'f6\'e8\'ff Terraform\par
+#\par
+# \'c8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5 \'ed\'e0\'f8\'e5\'e3\'ee \'ec\'ee\'e4\'f3\'eb\'ff Terraform \'e4\'eb\'ff \'f1\'ee\'e7\'e4\'e0\'ed\'e8\'ff \'f1\'e5\'f2\'e5\'e9 AWS VPC\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'d3\'ea\'e0\'e7\'e0\'ed\'e8\'e5 AWS \'e2 \'ea\'e0\'f7\'e5\'f1\'f2\'e2\'e5 \'ef\'f0\'ee\'e2\'e0\'e9\'e4\'e5\'f0\'e0 \'e8 \'f3\'ea\'e0\'e7\'e0\'ed\'e8\'e5 \'f0\'e5\'e3\'e8\'ee\'ed\'e0\par
+provider "aws" \{\par
+  region = var.region\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 VPC \'f1 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5\'ec \'ec\'ee\'e4\'f3\'eb\'ff aws_network (\'ef\'ee \'f3\'ec\'ee\'eb\'f7\'e0\'ed\'e8\'fe)\par
+module "vpc-default" \{\par
+  source = "../modules/aws_network"\par
+  //  source               = "git@github.com:adv4000/terraform-modules.git//aws_network"\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 VPC \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "dev" \'f1 \'e7\'e0\'e4\'e0\'ed\'ed\'fb\'ec\'e8 \'ef\'e0\'f0\'e0\'ec\'e5\'f2\'f0\'e0\'ec\'e8\par
+module "vpc-dev" \{\par
+  source               = "../modules/aws_network"\par
+  //  source               = "git@github.com:adv4000/terraform-modules.git//aws_network"\par
+  env                  = "dev"\par
+  vpc_cidr             = "10.100.0.0/16"\par
+  public_subnet_cidrs  = ["10.100.1.0/24", "10.100.2.0/24"]\par
+  private_subnet_cidrs = []\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 VPC \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "prod" \'f1 \'e7\'e0\'e4\'e0\'ed\'ed\'fb\'ec\'e8 \'ef\'e0\'f0\'e0\'ec\'e5\'f2\'f0\'e0\'ec\'e8\par
+module "vpc-prod" \{\par
+  source               = "../modules/aws_network"\par
+  // source               = "git@github.com:adv4000/terraform-modules.git//aws_network"\par
+  env                  = "prod"\par
+  vpc_cidr             = "10.10.0.0/16"\par
+  public_subnet_cidrs  = ["10.10.1.0/24", "10.10.2.0/24", "10.10.3.0/24"]\par
+  private_subnet_cidrs = ["10.10.11.0/24", "10.10.22.0/24", "10.10.33.0/24"]\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 VPC \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "staging" \'f1 \'e7\'e0\'e4\'e0\'ed\'ed\'fb\'ec\'e8 \'ef\'e0\'f0\'e0\'ec\'e5\'f2\'f0\'e0\'ec\'e8\par
+module "vpc-test" \{\par
+  source               = "../modules/aws_network"\par
+  // source               = "git@github.com:adv4000/terraform-modules.git//aws_network"\par
+  env                  = "staging"\par
+  vpc_cidr             = "10.10.0.0/16"\par
+  public_subnet_cidrs  = ["10.10.1.0/24", "10.10.2.0/24"]\par
+  private_subnet_cidrs = ["10.10.11.0/24", "10.10.22.0/24"]\par
+\}\par
+#===============================================\par
+```\par
+\par
+\'ca\'e0\'e6\'e4\'e0\'ff \'f1\'f2\'f0\'ee\'ea\'e0 \'ea\'ee\'e4\'e0 \'e8\'ec\'e5\'e5\'f2 \'f1\'eb\'e5\'e4\'f3\'fe\'f9\'e8\'e9 \'f1\'ec\'fb\'f1\'eb:\par
+\par
+1. `provider "aws"`: \'ce\'ef\'f0\'e5\'e4\'e5\'eb\'e5\'ed\'e8\'e5 \'ef\'f0\'ee\'e2\'e0\'e9\'e4\'e5\'f0\'e0 AWS \'e8 \'f3\'ea\'e0\'e7\'e0\'ed\'e8\'e5 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'ee\'e9 `region` \'e8\'e7 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'f5 Terraform (`var.region`) \'e2 \'ea\'e0\'f7\'e5\'f1\'f2\'e2\'e5 \'f0\'e5\'e3\'e8\'ee\'ed\'e0.\par
+\par
+2. `module "vpc-default"`: \'c8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5 \'ec\'ee\'e4\'f3\'eb\'ff `aws_network` \'e4\'eb\'ff \'f1\'ee\'e7\'e4\'e0\'ed\'e8\'ff VPC \'f1 \'ed\'e0\'f1\'f2\'f0\'ee\'e9\'ea\'e0\'ec\'e8 \'ef\'ee \'f3\'ec\'ee\'eb\'f7\'e0\'ed\'e8\'fe. \'d0\'e5\'e0\'eb\'e8\'e7\'e0\'f6\'e8\'ff \'ec\'ee\'e4\'f3\'eb\'ff \'ed\'e0\'f5\'ee\'e4\'e8\'f2\'f1\'ff \'e2 \'e4\'e8\'f0\'e5\'ea\'f2\'ee\'f0\'e8\'e8 `../modules/aws_network`.\par
+\par
+3. `module "vpc-dev"`: \'c8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5 \'ec\'ee\'e4\'f3\'eb\'ff `aws_network` \'e4\'eb\'ff \'f1\'ee\'e7\'e4\'e0\'ed\'e8\'ff VPC \'f1 \'ef\'e0\'f0\'e0\'ec\'e5\'f2\'f0\'e0\'ec\'e8 \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "dev" \'e8 \'f3\'ea\'e0\'e7\'e0\'ed\'ed\'fb\'ec\'e8 \'e4\'e8\'e0\'ef\'e0\'e7\'ee\'ed\'e0\'ec\'e8 CIDR \'e4\'eb\'ff VPC, \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'e8 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9.\par
+\par
+4. `module "vpc-prod"`: \'c0\'ed\'e0\'eb\'ee\'e3\'e8\'f7\'ed\'ee \'ef\'f0\'e5\'e4\'fb\'e4\'f3\'f9\'e5\'ec\'f3, \'ed\'ee \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "prod" \'f1 \'e1\'ee\'eb\'e5\'e5 \'f1\'eb\'ee\'e6\'ed\'fb\'ec\'e8 \'ed\'e0\'f1\'f2\'f0\'ee\'e9\'ea\'e0\'ec\'e8 \'f1\'e5\'f2\'e8.\par
+\par
+5. `module "vpc-test"`: \'c5\'f9\'e5 \'ee\'e4\'e8\'ed \'ef\'f0\'e8\'ec\'e5\'f0 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'ff \'ec\'ee\'e4\'f3\'eb\'ff \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "staging" \'f1 \'e7\'e0\'e4\'e0\'ed\'ed\'fb\'ec\'e8 \'ef\'e0\'f0\'e0\'ec\'e5\'f2\'f0\'e0\'ec\'e8 \'f1\'e5\'f2\'e8.\line\line\line\'ca\'ee\'ec\'ec\'e5\'ed\'f2\'e0\'f0\'e8\'e9 `// source = "git@github.com:adv4000/terraform-modules.git//aws_network"` \'ef\'f0\'e5\'e4\'ee\'f1\'f2\'e0\'e2\'eb\'ff\'e5\'f2 \'ef\'f3\'f2\'fc \'ea \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'ec\'f3 \'f0\'e5\'ef\'ee\'e7\'e8\'f2\'ee\'f0\'e8\'fe, \'ea\'ee\'f2\'ee\'f0\'fb\'e9 \'ec\'ee\'e6\'e5\'f2 \'e1\'fb\'f2\'fc \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed \'e2\'ec\'e5\'f1\'f2\'ee \'eb\'ee\'ea\'e0\'eb\'fc\'ed\'ee\'e3\'ee \'ef\'f3\'f2\'e8 (`source = "../modules/aws_network"`) \'e4\'eb\'ff \'ef\'ee\'eb\'f3\'f7\'e5\'ed\'e8\'ff \'ec\'ee\'e4\'f3\'eb\'ff `aws_network`. \line\'c2 \'e4\'e0\'ed\'ed\'ee\'ec \'f1\'eb\'f3\'f7\'e0\'e5, \'e5\'f1\'eb\'e8 \'e2\'fb \'f5\'ee\'f2\'e8\'f2\'e5 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'f2\'fc \'ec\'ee\'e4\'f3\'eb\'fc, \'ea\'ee\'f2\'ee\'f0\'fb\'e9 \'ed\'e0\'f5\'ee\'e4\'e8\'f2\'f1\'ff \'e2 \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'ec Git-\'f0\'e5\'ef\'ee\'e7\'e8\'f2\'ee\'f0\'e8\'e8 \'ef\'ee \'f3\'ea\'e0\'e7\'e0\'ed\'ed\'ee\'ec\'f3 \'ef\'f3\'f2\'e8, \'e2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'f0\'e0\'f1\'ea\'ee\'ec\'ec\'e5\'ed\'f2\'e8\'f0\'ee\'e2\'e0\'f2\'fc \'fd\'f2\'f3 \'f1\'f2\'f0\'ee\'ea\'f3 \'e8 \'e7\'e0\'e4\'e0\'f2\'fc \'f1\'e2\'ee\'e9\'f1\'f2\'e2\'ee `source` \'e4\'eb\'ff \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'ff \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e3\'ee \'f0\'e5\'ef\'ee\'e7\'e8\'f2\'ee\'f0\'e8\'ff.\line\line\par
+#----------------------------------------------------------\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "prod"\par
+output "prod_public_subnet_ids" \{\par
+  value = module.vpc-prod.public_subnet_ids\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "prod"\par
+output "prod_private_subnet_ids" \{\par
+  value = module.vpc-prod.private_subnet_ids\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "dev"\par
+output "dev_public_subnet_ids" \{\par
+  value = module.vpc-dev.public_subnet_ids\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff "dev"\par
+output "dev_private_subnet_ids" \{\par
+  value = module.vpc-dev.private_subnet_ids\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'e4\'ee\'e1\'e0\'e2\'eb\'ff\'e5\'f2 \'e2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 \'f1\'ee\'e7\'e4\'e0\'ed\'ed\'ee\'e9 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb \'f1 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5\'ec Terraform. \line\'c2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'f2\'fc \'fd\'f2\'e8 \'e2\'fb\'e2\'ee\'e4\'fb, \'f7\'f2\'ee\'e1\'fb \'ef\'ee\'eb\'f3\'f7\'e8\'f2\'fc \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'ff \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'ee\'e2 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'f5 \'e8 \'ef\'f0\'e8\'e2\'e0\'f2\'ed\'fb\'f5 \'ef\'ee\'e4\'f1\'e5\'f2\'e5\'e9 \'e4\'eb\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'e9 "prod" \'e8 "dev" \'ef\'ee\'f1\'eb\'e5 \'e2\'fb\'ef\'ee\'eb\'ed\'e5\'ed\'e8\'ff \'ea\'ee\'ec\'e0\'ed\'e4\'fb `terraform apply`.\par
+\par
+\'cf\'f0\'e8\'ec\'e5\'f0:\par
+\par
+module "vpc-dev" \{\par
+  source               = "git@github.com:adv4000/terraform-modules.git//aws_network"\par
+  env                  = "dev"\par
+  vpc_cidr             = "10.100.0.0/16"\par
+  public_subnet_cidrs  = ["10.100.1.0/24", "10.100.2.0/24"]\par
+  private_subnet_cidrs = []\par
+\}\par
+```\par
+\par
+\'d2\'e0\'ea\'e8\'ec \'ee\'e1\'f0\'e0\'e7\'ee\'ec, Terraform \'e1\'f3\'e4\'e5\'f2 \'e7\'e0\'e3\'f0\'f3\'e6\'e0\'f2\'fc \'ec\'ee\'e4\'f3\'eb\'fc `aws_network` \'e8\'e7 \'f3\'ea\'e0\'e7\'e0\'ed\'ed\'ee\'e3\'ee \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e3\'ee Git-\'f0\'e5\'ef\'ee\'e7\'e8\'f2\'ee\'f0\'e8\'ff \'e2\'ec\'e5\'f1\'f2\'ee \'eb\'ee\'ea\'e0\'eb\'fc\'ed\'ee\'e9 \'e4\'e8\'f0\'e5\'ea\'f2\'ee\'f0\'e8\'e8.\line\line\par
+#----------------------------------------------------------\par
+# \'cf\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'e5 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'d0\'e5\'e3\'e8\'ee\'ed AWS, \'e2 \'ea\'ee\'f2\'ee\'f0\'ee\'ec \'e1\'f3\'e4\'e5\'f2 \'f1\'ee\'e7\'e4\'e0\'ed\'e0 \'f1\'e5\'f2\'fc VPC\par
+variable "region" \{\par
+  description = "AWS Region where to provision VPC Network"\par
+  default     = "eu-north-1"\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'ee\'ef\'f0\'e5\'e4\'e5\'eb\'ff\'e5\'f2 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'f3\'fe `region`, \'ea\'ee\'f2\'ee\'f0\'e0\'ff \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'f3\'e5\'f2\'f1\'ff \'e4\'eb\'ff \'f3\'ea\'e0\'e7\'e0\'ed\'e8\'ff \'f0\'e5\'e3\'e8\'ee\'ed\'e0 AWS, \'e2 \'ea\'ee\'f2\'ee\'f0\'ee\'ec \'e1\'f3\'e4\'e5\'f2 \'f1\'ee\'e7\'e4\'e0\'ed\'e0 \'f1\'e5\'f2\'fc VPC. \'cf\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'e0\'ff \'e8\'ec\'e5\'e5\'f2 \'ee\'ef\'e8\'f1\'e0\'ed\'e8\'e5 (`description`), \'ef\'ee\'ff\'f1\'ed\'ff\'fe\'f9\'e5\'e5 \'e5\'e5 \'ed\'e0\'e7\'ed\'e0\'f7\'e5\'ed\'e8\'e5, \'e8 \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'e5 \'ef\'ee \'f3\'ec\'ee\'eb\'f7\'e0\'ed\'e8\'fe (`default`), \'f3\'f1\'f2\'e0\'ed\'ee\'e2\'eb\'e5\'ed\'ed\'ee\'e5 \'e2 "eu-north-1". \line\'c2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'e8\'e7\'ec\'e5\'ed\'e8\'f2\'fc \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'e5 \'f0\'e5\'e3\'e8\'ee\'ed\'e0, \'ef\'e5\'f0\'e5\'e4\'e0\'e2\'e0\'ff \'e4\'f0\'f3\'e3\'e8\'e5 \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'ff \'ef\'f0\'e8 \'e2\'fb\'ef\'ee\'eb\'ed\'e5\'ed\'e8\'e8 Terraform \'ea\'ee\'ec\'e0\'ed\'e4.\line\f0\lang1033\par
+}
+ 

@@ -1,0 +1,83 @@
+Данный код представляет конфигурацию Terraform для создания ресурсов AWS, таких как виртуальные машины, группы безопасности и виртуальные частные облака (VPC) :
+
+1. Указываем, что мы используем провайдер AWS и устанавливаем регион в "eu-central-1":
+```
+provider "aws" {
+  region = "eu-central-1"
+}
+```
+
+2. Создаем ресурс по умолчанию для виртуальной частной облака (VPC):
+```
+resource "aws_default_vpc" "default" {} # Это должно быть добавлено с версии AWS Provider v4.29+ для получения идентификатора VPC
+```
+
+3. Создаем экземпляр AWS EC2 для веб-сервера с использованием условия:
+```
+resource "aws_instance" "my_webserver1" {
+  ami           = "ami-03a71cec707bfc3d7"
+  instance_type = var.env == "prod" ? var.ec2_size["prod"] : var.ec2_size["dev"]
+
+  tags = {
+    Name  = "${var.env}-server"
+    Owner = var.env == "prod" ? var.prod_onwer : var.noprod_owner
+  }
+}
+```
+
+4. Создаем второй экземпляр AWS EC2 для веб-сервера с использованием функции `lookup`:
+```
+resource "aws_instance" "my_webserver2" {
+  ami           = "ami-03a71cec707bfc3d7"
+  instance_type = lookup(var.ec2_size, var.env)
+
+  tags = {
+    Name  = "${var.env}-server"
+    Owner = var.env == "prod" ? var.prod_onwer : var.noprod_owner
+  }
+}
+```
+
+5. Создаем экземпляр AWS EC2 (bastion) только для среды "dev" с использованием условия и параметра `count`:
+```
+resource "aws_instance" "my_dev_bastion" {
+  count         = var.env == "dev" ? 1 : 0
+  ami           = "ami-03a71cec707bfc3d7"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "Bastion Server for Dev-server"
+  }
+}
+```
+
+6. Создаем группу безопасности для веб-серверов с динамическими правилами входящего трафика, которые зависят от значения в переменной `var.allow_port_list`:
+```
+resource "aws_security_group" "my_webserver" {
+  name   = "Dynamic Security Group"
+  vpc_id = aws_default_vpc.default.id # Это должно быть добавлено с версии AWS Provider v4.29+ для установки идентификатора VPC
+
+  dynamic "ingress" {
+    for_each = lookup(var.allow_port_list, var.env)
+    content {
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name  = "Dynamic SecurityGroup"
+    Owner = "Dishu"
+  }
+}
+```
+
+Этот код использует Terraform для создания и настройки ресурсов AWS в соответствии с указанными параметрами и условиями, определенными в переменных. Каждый ресурс имеет свои собственные теги для управления их идентификацией и атрибутами.

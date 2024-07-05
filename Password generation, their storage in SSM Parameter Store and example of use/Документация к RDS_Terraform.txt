@@ -1,0 +1,79 @@
+Ваш код Terraform предназначен для создания Amazon RDS (Amazon Relational Database Service) инстанса MySQL с использованием сгенерированного случайным образом пароля, который хранится в AWS Systems Manager Parameter Store (SSM Parameter Store) :
+
+1. Блок `provider` указывает на то, что используется провайдер AWS в регионе `eu-central-1`.
+
+
+provider "aws" {
+  region = "eu-central-1"
+}
+```
+
+2. Блок `variable` определяет переменную `name`, которая имеет значение по умолчанию "DiShu". Эта переменная пока не используется, но может быть использована для динамической конфигурации.
+
+
+variable "name" {
+  default = "DiShu"
+}
+```
+
+3. Блок `resource` `random_string` создает случайную строку, которая будет использоваться в качестве пароля для базы данных RDS MySQL. Эта случайная строка имеет длину 12 символов и включает специальные символы "!@#&". Она также связана с переменной `name` в качестве "keeper1". При изменении значения `name`, будет перегенерирован новый пароль.
+
+
+resource "random_string" "rds_password" {
+  length           = 12
+  special          = true
+  override_special = "!@#&"
+  keepers = {
+    keeper1 = var.name
+  }
+}
+```
+
+4. Блок `resource` `aws_ssm_parameter` создает параметр в AWS SSM Parameter Store для хранения секретного пароля базы данных RDS MySQL (aws.amazon.com/systems-manager/). Этот пароль получается из ресурса `random_string.rds_password`.
+
+
+resource "aws_ssm_parameter" "rds_password" {
+  name        = "/prod/mysql"
+  description = "Master Password for RDS MYSQL"
+  type        = "SecureString"
+  value       = random_string.rds_password.result
+}
+```
+
+5. Блок `data` `aws_ssm_parameter` получает значение ранее созданного параметра из SSM Parameter Store. Он также зависит от создания ресурса `aws_ssm_parameter.rds_password`, чтобы убедиться, что параметр доступен перед использованием.
+
+
+data "aws_ssm_parameter" "my_rds_password" {
+  name = "/prod/mysql"
+
+  depends_on = [aws_ssm_parameter.rds_password]
+}
+```
+
+6. Блок `resource` `aws_db_instance` создает экземпляр базы данных RDS MySQL. Этот ресурс использует случайно сгенерированный пароль из SSM Parameter Store и другие параметры конфигурации, такие как размер хранилища, имя базы данных, тип и версия движка и т. д.
+
+
+resource "aws_db_instance" "mysql" {
+  identifier          = "prod-rds"
+  allocated_storage   = 10
+  db_name             = "mydb"
+  engine              = "mysql"
+  engine_version      = "5.7"
+  instance_class      = "db.t3.micro"
+  username            = "admin"
+  password            = data.aws_ssm_parameter.my_rds_password.value
+  parameter_group_name = "default.mysql5.7"
+  skip_final_snapshot = true
+  apply_immediately   = true
+}
+```
+
+7. Блок `output` определяет вывод, который возвращает значение параметра SSM Parameter Store, чтобы можно было увидеть сгенерированный пароль после выполнения `terraform apply`.
+
+
+output "rds_password" {
+  value = data.aws_ssm_parameter.my_rds_password.value
+}
+```
+
+Этот код Terraform создает безопасную и управляемую инфраструктуру для RDS MySQL с использованием сгенерированного пароля и хранения его в AWS SSM Parameter Store.

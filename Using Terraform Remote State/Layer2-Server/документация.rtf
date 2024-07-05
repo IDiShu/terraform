@@ -1,0 +1,129 @@
+{\rtf1\ansi\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Calibri;}{\f1\fnil\fcharset204 Calibri;}}
+{\colortbl ;\red0\green0\blue255;}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang1033 #----------------------------------------------------------\par
+# \f1\lang1049\'cc\'ee\'ff \'ea\'ee\'ed\'f4\'e8\'e3\'f3\'f0\'e0\'f6\'e8\'ff Terraform\par
+#\par
+# \'d3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e5 \'f5\'f0\'e0\'ed\'e5\'ed\'e8\'e5 \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff \'e2 S3\par
+#\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'ee Denis Astahov\par
+#----------------------------------------------------------\par
+provider "aws" \{\par
+  region = "ca-central-1"\par
+\}\par
+\par
+terraform \{\par
+  backend "s3" \{\par
+    bucket = "denis-astahov-project-kgb-terraform-state" // \'c1\'e0\'ea\'e5\'f2 \'e4\'eb\'ff \'d1\'ce\'d5\'d0\'c0\'cd\'c5\'cd\'c8\'df \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff Terraform\par
+    key    = "dev/servers/terraform.tfstate"             // \'c8\'ec\'ff \'ee\'e1\'fa\'e5\'ea\'f2\'e0 \'e2 \'e1\'e0\'ea\'e5\'f2\'e5 \'e4\'eb\'ff \'d1\'ce\'d5\'d0\'c0\'cd\'c5\'cd\'c8\'df \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff Terraform\par
+    region = "us-east-1"                                 // \'d0\'e5\'e3\'e8\'ee\'ed, \'e2 \'ea\'ee\'f2\'ee\'f0\'ee\'ec \'f1\'ee\'e7\'e4\'e0\'ed \'e1\'e0\'ea\'e5\'f2\par
+  \}\par
+\}\par
+#====================================================================\par
+\par
+# \'cf\'ee\'eb\'f3\'f7\'e5\'ed\'e8\'e5 \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e3\'ee \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff Terraform \'e8\'e7 \'e1\'e0\'ea\'e5\'f2\'e0 S3 \'e4\'eb\'ff \'f1\'e5\'f2\'e5\'e2\'ee\'e9 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb\par
+data "terraform_remote_state" "network" \{\par
+  backend = "s3"\par
+  config = \{\par
+    bucket = "denis-astahov-project-kgb-terraform-state" // \'c1\'e0\'ea\'e5\'f2, \'e8\'e7 \'ea\'ee\'f2\'ee\'f0\'ee\'e3\'ee \'c7\'c0\'c3\'d0\'d3\'c6\'c0\'c5\'d2\'d1\'df \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'e5 Terraform\par
+    key    = "dev/network/terraform.tfstate"             // \'c8\'ec\'ff \'ee\'e1\'fa\'e5\'ea\'f2\'e0 \'e2 \'e1\'e0\'ea\'e5\'f2\'e5 \'e4\'eb\'ff \'c7\'c0\'c3\'d0\'d3\'c7\'ca\'c8 \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff Terraform\par
+    region = "us-east-1"                                 // \'d0\'e5\'e3\'e8\'ee\'ed, \'e2 \'ea\'ee\'f2\'ee\'f0\'ee\'ec \'f1\'ee\'e7\'e4\'e0\'ed \'e1\'e0\'ea\'e5\'f2\par
+  \}\par
+\}\par
+\par
+# \'cf\'ee\'eb\'f3\'f7\'e5\'ed\'e8\'e5 \'ef\'ee\'f1\'eb\'e5\'e4\'ed\'e5\'e3\'ee Amazon Linux AMI\par
+data "aws_ami" "latest_amazon_linux" \{\par
+  owners      = ["amazon"]\par
+  most_recent = true\par
+  filter \{\par
+    name   = "name"\par
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]\par
+  \}\par
+\}\par
+#===============================================================\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 \'f0\'e5\'f1\'f3\'f0\'f1\'e0 - \'fd\'ea\'e7\'e5\'ec\'ef\'eb\'ff\'f0\'e0 Amazon EC2 (\'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0)\par
+resource "aws_instance" "web_server" \{\par
+  ami                    = data.aws_ami.latest_amazon_linux.id\par
+  instance_type          = "t3.micro"\par
+  vpc_security_group_ids = [aws_security_group.webserver.id]\par
+  subnet_id              = data.terraform_remote_state.network.outputs.public_subnet_ids[0]\par
+  user_data              = <<EOF\par
+#!/bin/bash\par
+yum -y update\par
+yum -y install httpd\par
+myip=`curl {{\field{\*\fldinst{HYPERLINK http://169.254.169.254/latest/meta-data/local-ipv4` }}{\fldrslt{http://169.254.169.254/latest/meta-data/local-ipv4`\ul0\cf0}}}}\f1\fs22\par
+echo "<h2>WebServer with IP: $myip</h2><br>Build by Terraform with Remote State"  >  /var/www/html/index.html\par
+sudo service httpd start\par
+chkconfig httpd on\par
+EOF\par
+  tags = \{\par
+    Name = "$\{var.env\}-WebServer"\par
+  \}\par
+\}\par
+\par
+# \'d1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 \'f0\'e5\'f1\'f3\'f0\'f1\'e0 - \'e3\'f0\'f3\'ef\'ef\'fb \'e1\'e5\'e7\'ee\'ef\'e0\'f1\'ed\'ee\'f1\'f2\'e8 \'e4\'eb\'ff \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0\par
+resource "aws_security_group" "webserver" \{\par
+  name = "WebServer Security Group"\par
+  vpc_id = data.terraform_remote_state.network.outputs.vpc_id\par
+\par
+  ingress \{\par
+    from_port   = 80\par
+    to_port     = 80\par
+    protocol    = "tcp"\par
+    cidr_blocks = ["0.0.0.0/0"]\par
+  \}\par
+\par
+  ingress \{\par
+    from_port   = 22\par
+    to_port     = 22\par
+    protocol    = "tcp"\par
+    cidr_blocks = [data.terraform_remote_state.network.outputs.vpc_cidr]\par
+  \}\par
+\par
+  egress \{\par
+    from_port   = 0\par
+    to_port     = 0\par
+    protocol    = "-1"\par
+    cidr_blocks = ["0.0.0.0/0"]\par
+  \}\par
+\par
+  tags = \{\par
+    Name  = "$\{var.env\}-web-server-sg"\par
+    Owner = "Denis Astahov"\par
+  \}\par
+\}\par
+#=================================================================\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'ea\'ee\'e4 Terraform \'f1\'ee\'e7\'e4\'e0\'e5\'f2 \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0 \'e2 \'ee\'e1\'eb\'e0\'ea\'e5 AWS \'f1 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5\'ec \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e3\'ee \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff, \'f5\'f0\'e0\'ed\'ff\'f9\'e5\'e3\'ee\'f1\'ff \'e2 S3. \line\'ca\'ee\'ed\'f4\'e8\'e3\'f3\'f0\'e0\'f6\'e8\'ff \'e2\'ea\'eb\'fe\'f7\'e0\'e5\'f2 \'e2 \'f1\'e5\'e1\'ff \'ed\'e0\'f1\'f2\'f0\'ee\'e9\'ea\'f3 \'ef\'f0\'ee\'e2\'e0\'e9\'e4\'e5\'f0\'e0 AWS, \'e1\'e5\'ea\'e5\'ed\'e4\'e0 \'e4\'eb\'ff \'f5\'f0\'e0\'ed\'e5\'ed\'e8\'ff \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff \'e2 S3, \'ef\'ee\'eb\'f3\'f7\'e5\'ed\'e8\'e5 \'f3\'e4\'e0\'eb\'e5\'ed\'ed\'ee\'e3\'ee \'f1\'ee\'f1\'f2\'ee\'ff\'ed\'e8\'ff \'e4\'eb\'ff \'f1\'e5\'f2\'e5\'e2\'ee\'e9 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb, \'f1\'ee\'e7\'e4\'e0\'ed\'e8\'e5 \'fd\'ea\'e7\'e5\'ec\'ef\'eb\'ff\'f0\'e0 Amazon EC2 (\'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0) \'e8 \'e3\'f0\'f3\'ef\'ef\'fb \'e1\'e5\'e7\'ee\'ef\'e0\'f1\'ed\'ee\'f1\'f2\'e8 \'e4\'eb\'ff \'fd\'f2\'ee\'e3\'ee \'f1\'e5\'f0\'e2\'e5\'f0\'e0.\line\line\line #----------------------------------------------------------\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0\'e0 \'e3\'f0\'f3\'ef\'ef\'fb \'e1\'e5\'e7\'ee\'ef\'e0\'f1\'ed\'ee\'f1\'f2\'e8 \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0\par
+output "webserver_sg_id" \{\par
+  value = aws_security_group.webserver.id\par
+\}\par
+\par
+# \'c2\'fb\'e2\'ee\'e4 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'ee\'e3\'ee IP-\'e0\'e4\'f0\'e5\'f1\'e0 \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0\par
+output "web_server_public_ip" \{\par
+  value = aws_instance.web_server.public_ip\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'e4\'ee\'e1\'e0\'e2\'eb\'ff\'e5\'f2 \'e2\'fb\'e2\'ee\'e4 \'e8\'ed\'f4\'ee\'f0\'ec\'e0\'f6\'e8\'e8 \'e8\'e7 \'f1\'ee\'e7\'e4\'e0\'ed\'ed\'ee\'e9 \'e8\'ed\'f4\'f0\'e0\'f1\'f2\'f0\'f3\'ea\'f2\'f3\'f0\'fb \'f1 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'ed\'e8\'e5\'ec Terraform. \line\'c2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'ee\'e2\'e0\'f2\'fc \'fd\'f2\'e8 \'e2\'fb\'e2\'ee\'e4\'fb, \'f7\'f2\'ee\'e1\'fb \'ef\'ee\'eb\'f3\'f7\'e8\'f2\'fc \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'ff, \'f2\'e0\'ea\'e8\'e5 \'ea\'e0\'ea \'e8\'e4\'e5\'ed\'f2\'e8\'f4\'e8\'ea\'e0\'f2\'ee\'f0 \'e3\'f0\'f3\'ef\'ef\'fb \'e1\'e5\'e7\'ee\'ef\'e0\'f1\'ed\'ee\'f1\'f2\'e8 \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0 (`terraform output webserver_sg_id`) \'e8 \'ef\'f3\'e1\'eb\'e8\'f7\'ed\'fb\'e9 IP-\'e0\'e4\'f0\'e5\'f1 \'e2\'e5\'e1-\'f1\'e5\'f0\'e2\'e5\'f0\'e0 (`terraform output web_server_public_ip`) \'ef\'ee\'f1\'eb\'e5 \'e2\'fb\'ef\'ee\'eb\'ed\'e5\'ed\'e8\'ff \'ea\'ee\'ec\'e0\'ed\'e4\'fb `terraform apply`.\line\par
+#----------------------------------------------------------\par
+# \'cf\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'fb\'e5 Terraform\par
+#\par
+#----------------------------------------------------------\par
+\par
+# \'ce\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'e5 (\'ed\'e0\'ef\'f0\'e8\'ec\'e5\'f0, dev, prod)\par
+variable "env" \{\par
+  default = "dev"\par
+\}\par
+```\par
+\par
+\'dd\'f2\'ee\'f2 \'e1\'eb\'ee\'ea \'ea\'ee\'e4\'e0 \'f1\'ee\'e4\'e5\'f0\'e6\'e8\'f2 \'ef\'e5\'f0\'e5\'ec\'e5\'ed\'ed\'f3\'fe `env`, \'ea\'ee\'f2\'ee\'f0\'e0\'ff \'e8\'f1\'ef\'ee\'eb\'fc\'e7\'f3\'e5\'f2\'f1\'ff \'e4\'eb\'ff \'f3\'ea\'e0\'e7\'e0\'ed\'e8\'ff \'ee\'ea\'f0\'f3\'e6\'e5\'ed\'e8\'ff (\'ed\'e0\'ef\'f0\'e8\'ec\'e5\'f0, "dev" \'e8\'eb\'e8 "prod"). \'c7\'ed\'e0\'f7\'e5\'ed\'e8\'e5 \'ef\'ee \'f3\'ec\'ee\'eb\'f7\'e0\'ed\'e8\'fe \'f3\'f1\'f2\'e0\'ed\'ee\'e2\'eb\'e5\'ed\'ee \'ea\'e0\'ea "dev", \'ed\'ee \'e2\'fb \'ec\'ee\'e6\'e5\'f2\'e5 \'e8\'e7\'ec\'e5\'ed\'e8\'f2\'fc \'e5\'e3\'ee, \'ef\'e5\'f0\'e5\'e4\'e0\'e2\'e0\'ff \'e4\'f0\'f3\'e3\'e8\'e5 \'e7\'ed\'e0\'f7\'e5\'ed\'e8\'ff \'ef\'f0\'e8 \'e2\'fb\'ef\'ee\'eb\'ed\'e5\'ed\'e8\'e8 Terraform \'ea\'ee\'ec\'e0\'ed\'e4.\f0\lang1033\par
+}
+ 

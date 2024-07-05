@@ -1,0 +1,94 @@
+Вот документация для предоставленной конфигурации Terraform:
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Provider Configuration
+provider "aws" {
+  region = "eu-central-1"
+}
+
+Этот раздел настраивает AWS провайдера для использования в конфигурации Terraform. Он указывает регион eu-central-1, в котором будут создаваться ресурсы.
+
+# Data Source: Get Latest Ubuntu AMI
+data "aws_ami" "latest_ubuntu" {
+  owners      = ["099720109477"]
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+}
+
+Этот раздел определяет источник данных, который извлекает информацию о последнем доступном образе Ubuntu в AWS с определенными фильтрами.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: AWS EC2 Instance
+resource "aws_instance" "my_ubuntu" {
+  ami           = data.aws_ami.latest_ubuntu.id
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.my_ubuntu.id]
+
+  tags = {
+    Name    = "Ubuntu server test"
+    Owner   = "DiShu"
+    Project = "Terraform test"
+  }
+}
+
+Этот раздел определяет ресурс "aws_instance", который представляет собой Amazon Elastic Compute Cloud (EC2) instance, использующий образ Ubuntu. Он также определяет группу безопасности, связанную с этим инстансом, и устанавливает теги для этого инстанса.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Security Group
+resource "aws_security_group" "my_ubuntu" {
+  name        = "WebServer Security Group"
+  description = "Security Group"
+
+  dynamic "ingress" {
+    for_each = ["80", "443", "8080", "9092", "1541"]
+    content {
+      description = "http protocol"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+Этот раздел определяет ресурс "aws_security_group", который представляет собой группу безопасности для контроля входящего и исходящего сетевого трафика. Он динамически создает правила входящего трафика для портов 80, 443, 8080, 9092 и 1541, а также устанавливает правило для SSH-доступа (порт 22).
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Output: Latest Ubuntu AMI ID
+output "latest_ubuntu_ami_id" {
+  value = data.aws_ami.latest_ubuntu.id
+}
+
+# Output: Latest Ubuntu AMI Names
+output "latest_ubuntu_ami_names" {
+  value = data.aws_ami.latest_ubuntu.name
+}
+
+# Output: WebServer Instance ID
+output "WebServer_instance_id" {
+  value = aws_instance.my_ubuntu.id
+}
+
+Этот раздел определяет выходные данные (output), которые предоставляют информацию о созданных ресурсах:
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+latest_ubuntu_ami_id выводит ID последнего образа Ubuntu.
+latest_ubuntu_ami_names выводит имена последнего образа Ubuntu.
+WebServer_instance_id выводит ID созданного EC2 instance.
+
+Эта конфигурация Terraform создает и настраивает Amazon EC2 instance, группу безопасности и использует образ Ubuntu в регионе eu-central-1. Выходные данные предоставляют информацию о созданных ресурсах для дальнейшего использования.
