@@ -1,0 +1,141 @@
+Документация для предоставленной конфигурации Terraform:
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Provider Configuration
+provider "aws" {
+  access_key = ""
+  secret_key = ""
+  region     = "eu-west-1"
+}
+
+Этот раздел настраивает AWS провайдера для использования в конфигурации Terraform. Он содержит ключи доступа и секретные ключи, необходимые для аутентификации в AWS, а также указывает регион, в котором будут создаваться ресурсы.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Data Source: Get Available Availability Zones
+data "aws_availability_zones" "available" {}
+
+Этот раздел определяет источник данных, который извлекает информацию о доступных зонах доступности в указанном AWS регионе.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Data Source: Get Latest Ubuntu AMI
+data "aws_ami" "latest_ubuntu" {
+  owners      = ["099720109477"]
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+}
+
+Этот раздел определяет источник данных, который извлекает информацию о последнем доступном образе Ubuntu в AWS с определенными фильтрами.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Launch Configuration
+resource "aws_launch_configuration" "web" {
+  name_prefix   = "WebServer-Test-LC"
+  image_id      = data.aws_ami.latest_ubuntu.id
+  instance_type = "t2.micro"
+  security_groups = [aws_security_group.my_ubuntu.id]
+  user_data = file("user_data.sh")
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+Этот раздел определяет ресурс "aws_launch_configuration", который представляет собой конфигурацию запуска для создания Amazon EC2 instances.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Security Group
+resource "aws_security_group" "my_ubuntu" {
+  name        = "WebServer Security Group"
+  description = "Security Group"
+
+  dynamic "ingress" {
+    for_each = ["80", "443", "22"]
+    content {
+      description = "default protocol"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name  = "Dynamic SecurityGrup"
+    Owner = "DiShu"
+  }
+}
+
+Этот раздел определяет ресурс "aws_security_group", который представляет собой группу безопасности для контроля входящего и исходящего сетевого трафика.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Auto Scaling Group
+resource "aws_autoscaling_group" "web" {
+  name                 = "ASG-${aws_launch_configuration.web.name}"
+  launch_configuration = aws_launch_configuration.web.name
+  max_size             = 5
+  min_size             = 2
+  min_elb_capacity     = 2
+  vpc_zone_identifier  = [aws_default_subnet.default_az1.id, aws_default_subnet.default_az2.id]
+  health_check_type    = "ELB"
+  load_balancers       = [aws_elb.web.name]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+Этот раздел определяет ресурс "aws_autoscaling_group", который представляет собой группу автомасштабирования для автоматического масштабирования EC2 instances.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Elastic Load Balancer (ELB)
+resource "aws_elb" "web" {
+  name               = "WebServer-in-elb"
+  availability_zones = [data.aws_availability_zones.available.names[0], data.aws_availability_zones.available.names[1]]
+  security_groups    = [aws_security_group.my_ubuntu.id]
+
+  listener {
+    lb_port           = 80
+    lb_protocol       = "HTTP"
+    instance_port     = 80
+    instance_protocol = "HTTP"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "HTTP:80/"
+    interval            = 10
+  }
+
+  tags = {
+    Name = "WebServer-in-elb"
+  }
+}
+
+Этот раздел определяет ресурс "aws_elb", который представляет собой балансировщик нагрузки Elastic Load Balancer (ELB) для маршрутизации трафика на EC2 instances.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Resource: Default Subnet for Availability Zones
+resource "aws_default_subnet" "default_az1" {
+  availability_zone = data.aws_availability_zones.available.names[0]
+}
+
+resource "aws_default_subnet" "default_az2" {
+  availability_zone = data.aws_availability_zones.available.names[1]
+}
+
+Этот раздел определяет ресурсы "aws_default_subnet", которые представляют собой подсети по умолчанию для доступных зон доступности.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Output: Web Load Balancer URL
+output "web_loadbalancer_url" {
+  value = aws_elb.web.dns_name
+}
+
+Этот раздел определяет вывод данных, который выводит URL балансировщика нагрузки ELB после создания стека Terraform.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Этот код создает и настраивает различные ресурсы AWS в указанном регионе с использованием Terraform. Каждый ресурс представляет собой различные компоненты вашей инфраструктуры, включая EC2 instances, группу безопасности, балансировщик нагрузки и другие.
