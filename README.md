@@ -1,48 +1,130 @@
-# terraform
- terraform training
-Замеки : 
+# Terraform README
 
-terraform import - Команда позволяет импортировать существующие ресурсы из инфраструктуры в управление Terraform.
+Terraform - это инструмент для создания, изменения и управления инфраструктурой безопасным и предсказуемым образом. С его помощью можно описывать инфраструктуру как код (IaC).
 
-terraform init - команда проходится по всем файлам и увидит с каким провайдером работаем ( подкачивает все что ей нужно ).
+## Установка Terraform
 
-terrafrom plan - смотрит что нужно создать и покажет все что мы написали ( но не создаст ничего ) проверка для дебага .
+### На Ubuntu
 
-terraform apply - создание инстансов и тех параметров которые мы пишем в коде для создание в AWS ( и других клауд сервисов ) .
+1. Обновите список пакетов и установите необходимые зависимости:
+   ```bash
+   sudo apt update
+   sudo apt install -y gnupg software-properties-common curl
+   ```
 
-terraform destroy - уничтожение всех серверов 
+2. Добавьте GPG ключ HashiCorp:
+   ```bash
+   curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+   ```
 
-terraform console - консоль терааформа
+3. Добавьте репозиторий HashiCorp:
+   ```bash
+   sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+   ```
 
-terraform validate - Эта команда выполняет проверку синтаксиса и структуры Terraform-конфигурации, чтобы убедиться, что она корректна.
+4. Установите Terraform:
+   ```bash
+   sudo apt update
+   sudo apt install terraform
+   ```
 
-terraform fmt -Команда terraform fmt автоматически форматирует Terraform-конфигурацию для обеспечения соблюдения стандартов форматирования.
+### На macOS
 
-terraform workspace -Terraform поддерживает рабочие пространства (workspaces), которые позволяют вам управлять несколькими окружениями инфраструктуры. Этот набор команд, таких как terraform workspace new, terraform workspace list и terraform workspace select, позволяет вам управлять рабочими пространствами.
+1. Установите Terraform с помощью Homebrew:
+   ```bash
+   brew tap hashicorp/tap
+   brew install hashicorp/tap/terraform
+   ```
 
-terraform state -Эта группа команд позволяет управлять состоянием Terraform, включая просмотр и изменение состояния ресурсов.
+## Создание первого проекта с Terraform
 
-terraform output - Команда terraform output позволяет просматривать значения выходных переменных, определенных в Terraform-конфигурации.
+### Шаг 1: Инициализация проекта
 
-export AWS_ACCESS_KEY_ID= - экспортирование открытого ключа
+1. Создайте новую директорию для вашего проекта и перейдите в нее:
+   ```bash
+   mkdir my-terraform-project
+   cd my-terraform-project
+   ```
 
-export AWS_SECRET_ACCESS_KEY=   - секретный ключ 
+2. Инициализируйте проект:
+   ```bash
+   terraform init
+   ```
 
-export AWS_DEFAULT_REGION=eu-central-1 - регион где будет сделан сервер 
+### Шаг 2: Описание инфраструктуры
 
-# жизненный цикл сервера
-lifecycle { 
-#create_before_destroy = true #создает новый сервер и потом удаляет старый сервер
-#prevent_destroy = true # предотвращает удаление сервера при изменении
-#ignore_changes = ["ami" , "user_data"] # игнорирование изменения
-}
+1. Создайте файл `main.tf` и опишите вашу инфраструктуру. Например, для создания экземпляра EC2 на AWS:
+   ```hcl
+   provider "aws" {
+     region = "us-west-2"
+   }
 
-terraform apply/plan -var="region=регион который нам нужен" -var="instance_type=t2.micro" - команда -var="" которая меняет переменную для задачи терраформа
+   resource "aws_instance" "example" {
+     ami           = "ami-0c55b159cbfafe1f0"
+     instance_type = "t2.micro"
 
-export TF_VAR_instance_type=t2.micro export TF_VAR_region=eu-cetral-1 - это способ передать значения переменных в Terraform через переменные окружения с явным указанием, что эти переменные связаны с инфраструктурным кодом.
+     tags = {
+       Name = "example-instance"
+     }
+   }
+   ```
 
-unset TF_VAR_region - стирает значения переменных которые были эскпортированны в env
+### Шаг 3: Планирование и применение изменений
 
-env | grep TF_VAR - выполняет поиск и вывод всех переменных окружения, связанных с Terraform , чтобы увидеть, какие переменные используются в текущей среде для настройки Terraform-проекта или инфраструктуры.
+1. Запустите команду `terraform plan` для предварительного просмотра изменений, которые будут применены:
+   ```bash
+   terraform plan
+   ```
 
-terraform apply/plan -var-file="prod.auto.tfvars" - что бы вместе не запускались файлы с расширением .tfvars , нам нужно указывать сам файл который должен запуститься .
+2. Примените изменения:
+   ```bash
+   terraform apply
+   ```
+
+3. Подтвердите применение изменений, введя `yes` при запросе.
+
+### Шаг 4: Управление инфраструктурой
+
+- Для обновления конфигурации или добавления новых ресурсов, внесите изменения в `main.tf` и повторите шаги `plan` и `apply`.
+- Для удаления ресурсов, используйте команду:
+  ```bash
+  terraform destroy
+  ```
+
+## Полезные команды Terraform
+
+- `terraform init` - инициализация нового или существующего Terraform проекта.
+- `terraform plan` - создание плана выполнения изменений инфраструктуры.
+- `terraform apply` - применение изменений, описанных в планах.
+- `terraform destroy` - удаление всех управляемых ресурсов.
+- `terraform validate` - проверка конфигурационных файлов на корректность.
+- `terraform fmt` - форматирование конфигурационных файлов Terraform.
+- `terraform show` - отображение состояния или плана инфраструктуры.
+- `terraform state` - управление состоянием Terraform.
+
+## Управление состоянием
+
+Terraform хранит состояние вашей инфраструктуры в файле `terraform.tfstate`. Этот файл необходим для корректного управления ресурсами. Для командной работы и предотвращения конфликтов рекомендуется хранить состояние в удаленном хранилище (например, в S3 или HashiCorp Consul).
+
+### Пример настройки удаленного хранилища в AWS S3:
+
+1. Добавьте блок `backend` в `main.tf`:
+   ```hcl
+   terraform {
+     backend "s3" {
+       bucket         = "my-terraform-state-bucket"
+       key            = "path/to/my/key"
+       region         = "us-west-2"
+       dynamodb_table = "my-lock-table"
+     }
+   }
+   ```
+
+2. Инициализируйте проект заново для применения изменений:
+   ```bash
+   terraform init
+   ```
+
+## Заключение
+
+Terraform - мощный инструмент для управления инфраструктурой как кодом. Этот README представляет базовое введение в использование Terraform. Для более сложных сценариев и конфигураций рекомендуется ознакомиться с [официальной документацией Terraform](https://www.terraform.io/docs).
